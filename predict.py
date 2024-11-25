@@ -31,9 +31,23 @@ def predict_image(predictor, image_path, output_path=None):
 
     outputs = predictor(img)
 
-    v = Visualizer(img[:, :, ::-1], MetadataCatalog.get("custom_train"), scale=1.2)
-    out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-    result_image = out.get_image()[:, :, ::-1]
+    instances = outputs["instances"].to("cpu")
+    masks = instances.pred_masks.numpy()
+    scores = instances.scores.numpy()
+    confidence_threshold = 0.5
+
+    if len(masks) > 0:
+        mask_overlay = np.zeros_like(img)
+        for mask, score in zip(masks, scores):
+            if score >= confidence_threshold:  # 신뢰도가 높은 마스크만 처리
+                mask = mask.astype(np.uint8)
+                mask_overlay[mask > 0] = [0, 255, 0]  # Green color for masks
+        
+        # Blend the mask with original image
+        alpha = 0.5
+        result_image = cv2.addWeighted(img, 1, mask_overlay, alpha, 0)
+    else:
+        result_image = img.copy()
 
     if output_path:
         cv2.imwrite(output_path, result_image)

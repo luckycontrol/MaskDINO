@@ -64,7 +64,51 @@ from detectron2.engine import (
     SimpleTrainer
 )
 import weakref
+from maskdino.data.dataset_mappers.albumentation_mapper import AlbumentationMapper
 
+def get_parser():
+    parser = argparse.ArgumentParser(description="MaskDINO Training")
+    parser.add_argument("--config-file", default="configs/coco/instance-segmentation/maskdino_R50_bs16_50ep_3s.yaml", 
+                      metavar="FILE", help="path to config file")
+    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus")
+    parser.add_argument("--num-machines", type=int, default=1, help="number of machines")
+    parser.add_argument("--machine-rank", type=int, default=0, help="the rank of this machine")
+    parser.add_argument("--dist-url", default="tcp://127.0.0.1:{}".format(random.randint(1000, 20000)),
+                      help="initialization URL for pytorch distributed backend")
+    parser.add_argument('--eval_only', action='store_true', help="perform evaluation only")
+    parser.add_argument('--EVAL_FLAG', type=int, default=1, help="evaluation flag")
+    
+    # 추가 인자들
+    parser.add_argument('--datasets', default='datasets', help='dataset path')
+    parser.add_argument('--weights', default='weights', help='weights path')
+    parser.add_argument('--output_dir', default='output', help='output directory')
+    parser.add_argument('--checkpoint_period', type=int, default=5000, help='checkpoint period')
+    parser.add_argument('--input_size', type=int, default=640, help='input size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--lr', type=float, default=0.000005, help='learning rate')
+    parser.add_argument('--iter', type=int, default=30000, help='iteration')
+    parser.add_argument('--num_classes', type=int, default=1, help='number of classes')
+    parser.add_argument('--resume', action='store_true', help='resume training')
+    
+    # opts를 위한 인자 추가
+    parser.add_argument(
+        "opts",
+        help="Modify config options by adding 'KEY VALUE' pairs at the end of the command. "
+        "See config references at "
+        "https://detectron2.readthedocs.io/modules/config.html#config-references",
+        default=None,
+        nargs=argparse.REMAINDER,
+    )
+    return parser
+
+def build_train_loader(cfg):
+
+    if cfg.INPUT.USE_ALBUMENTATIONS:
+        mapper = AlbumentationMapper(cfg, is_train=True)
+    else:
+        mapper = COCOInstanceNewBaselineDatasetMapper(cfg, is_train=True)
+
+    return build_detection_train_loader(cfg, mapper=mapper)
 
 class Trainer(DefaultTrainer):
     """
@@ -337,28 +381,26 @@ def setup(args):
     register_coco_instances(
         "custom_train",
         {},
-        "D:\SFA_TEST\coco_annotations.json",
-        "D:\SFA_TEST"
+        f"{cfg.datasets}\coco_annotations.json",
+        f"{cfg.datasets}"
     )
 
     cfg.merge_from_file(args.config_file)
 
-    cfg.MODEL.WEIGHTS = "weights/maskdino_r50_50ep_300q_hid1024_3sd1_instance_maskenhanced_mask46.1ap_box51.5ap"
-
-    cfg.SOLVER.IMS_PER_BATCH = 1
-    cfg.SOLVER.CHECKPOINT_PERIOD = 5000
-    cfg.OUTPUT_DIR = r"D:\models\MaskDINO\output2"
+    cfg.SOLVER.IMS_PER_BATCH = cfg.batch_size
+    cfg.SOLVER.CHECKPOINT_PERIOD = cfg.checkpoint_period
+    cfg.OUTPUT_DIR = cfg.output_dir
 
     cfg.SOLVER.RESUME = True
     
-    cfg.INPUT.MAX_SIZE_TRAIN = 640
-    cfg.INPUT.MIN_SIZE_TRAIN = (480, 512, 544)
+    cfg.INPUT.MAX_SIZE_TRAIN = cfg.input_size
+    cfg.INPUT.MIN_SIZE_TRAIN = cfg.input_size
 
     cfg.SOLVER.AMP.ENABLED = True
 
-    cfg.SOLVER.BASE_LR = 0.00001
-    cfg.SOLVER_MAX_ITER = 50000
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    cfg.SOLVER.BASE_LR = cfg.lr
+    cfg.SOLVER_MAX_ITER = cfg.iter
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = cfg.num_classes
 
     cfg.DATASETS.TRAIN = ("custom_train",)
     cfg.DATASETS.TEST = ("custom_train",)
@@ -374,21 +416,40 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-    print("Command cfg:", cfg)
+
+    register_coco_instances(
+        "custom_train",
+        {},
+        os.path.join(args.datasets, "coco_annotations.json"),
+        args.datasets
+    )
+
+    cfg.merge_from_file(args.config_file)
+
+    cfg.MODEL.WEIGHTS = args.weights
+    cfg.SOLVER.IMS_PER_BATCH = args.batch_size
+    cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
+    cfg.OUTPUT_DIR = args.output_dir
+    cfg.INPUT.MAX_SIZE_TRAIN = args.input_size
+    cfg.INPUT.MIN_SIZE_TRAIN = args.input_size
+    cfg.SOLVER.BASE_LR = args.lr
+    cfg.SOLVER_MAX_ITER = args.iter
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = args.num_classes
+
+    cfg.SOLVER.RESUME = args.resume
+    cfg.SOLVER.AMP.ENABLED = True
+
+    cfg.DATASETS.TRAIN = ("custom_train",)
+    cfg.DATASETS.TEST = ("custom_train",)
+
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+
     if args.eval_only:
         model = Trainer.build_model(cfg)
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        checkpointer = DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR)
-        checkpointer.resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=args.resume
-        )
         res = Trainer.test(cfg, model)
-        if cfg.TEST.AUG.ENABLED:
-            res.update(Trainer.test_with_TTA(cfg, model))
-        if comm.is_main_process():
-            verify_results(cfg, res)
         return res
 
     trainer = Trainer(cfg)
@@ -397,24 +458,12 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = default_argument_parser()
-    parser.add_argument('--eval_only', action='store_true')
-    parser.add_argument('--EVAL_FLAG', type=int, default=1)
-
-    parser.add_argument('--output_dir', default='output', help='output directory')
-
-    args = parser.parse_args()
-
-    if not args.config_file:
-        args.config_file = r"D:\models\MaskDINO\configs\coco\instance-segmentation\maskdino_R50_bs16_50ep_3s.yaml"
-    if args.output_dir:
-        args.opts.extend(['OUTPUT_DIR', args.output_dir])
+    args = get_parser().parse_args()
+    print("Command Line Args:", args)
 
     # random port
     port = random.randint(1000, 20000)
     args.dist_url = 'tcp://127.0.0.1:' + str(port)
-    print("Command Line Args:", args)
-    print("pwd:", os.getcwd())
     launch(
         main,
         args.num_gpus,

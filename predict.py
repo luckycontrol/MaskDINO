@@ -9,32 +9,37 @@ from maskdino import add_maskdino_config
 import cv2
 import numpy as np
 from pathlib import Path
+import time
 
 def setup_cfg(weights_path):
     cfg = get_cfg()
     add_deeplab_config(cfg)
     add_maskdino_config(cfg)
 
-    cfg.merge_from_file(r"D:\models\MaskDINO\configs\coco\instance-segmentation\maskdino_R50_bs16_50ep_3s.yaml")
+    cfg.merge_from_file(r"D:\models\MaskDINO\output6\config.yaml")
 
     cfg.MODEL.WEIGHTS = weights_path
 
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.8
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
 
     return cfg
 
 def predict_image(predictor, image_path, output_path=None):
     img = cv2.imread(image_path)
 
+    start_time = time.time()
     outputs = predictor(img)
+    end_time = time.time()
+
+    print(f"Inference time: {end_time - start_time:.2f} seconds")
 
     instances = outputs["instances"].to("cpu")
     masks = instances.pred_masks.numpy()
     scores = instances.scores.numpy()
-    confidence_threshold = 0.5
+    confidence_threshold = 0.1
 
     if len(masks) > 0:
         mask_overlay = np.zeros_like(img)
@@ -55,14 +60,14 @@ def predict_image(predictor, image_path, output_path=None):
     return result_image
 
 def main():
-    weights_path = r"D:\models\MaskDINO\output\model_0004999.pth"
+    weights_path = r"D:\models\MaskDINO\output6\model_0009999.pth"
 
     cfg = setup_cfg(weights_path)
 
     predictor = DefaultPredictor(cfg)
 
-    test_image_dir = r"D:\SFA_TEST"
-    output_dir = "predictions"
+    test_image_dir = r"D:\TEST_sfa"
+    output_dir = "predictions8"
 
     Path(output_dir).mkdir(exist_ok=True)
 

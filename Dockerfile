@@ -51,6 +51,8 @@ RUN python -c "import torch; print('CUDA available:', torch.cuda.is_available())
 # OpenCV 설치
 RUN pip install -U opencv-python
 
+RUN pip install albumentations
+
 # Detectron2 설치 전 필요한 의존성 설치
 RUN pip install numpy cython
 
@@ -65,7 +67,7 @@ RUN pip install 'git+https://github.com/cocodataset/panopticapi.git' && \
 WORKDIR /maskdino
 
 # MaskDINO 클론 및 설치
-RUN git clone https://github.com/IDEA-Research/MaskDINO.git . && \
+RUN git clone https://github.com/luckycontrol/MaskDINO.git . && \
     pip install -r requirements.txt
 
 # Pillow 버전 수정

@@ -51,12 +51,14 @@ RUN python -c "import torch; print('CUDA available:', torch.cuda.is_available())
 # OpenCV 설치
 RUN pip install -U opencv-python
 
+RUN pip install numpy==1.23.5
+
 RUN pip install albumentations
 
 RUN pip install argparse
 
 # Detectron2 설치 전 필요한 의존성 설치
-RUN pip install numpy cython
+RUN pip install cython
 
 # Detectron2 설치 (에러가 발생하던 부분 수정)
 RUN pip install 'git+https://github.com/MaureenZOU/detectron2-xyz.git'

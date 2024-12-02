@@ -382,26 +382,26 @@ def setup(args):
     register_coco_instances(
         "custom_train",
         {},
-        f"{cfg.datasets}\coco_annotations.json",
-        f"{cfg.datasets}"
+        f"{args.datasets}\coco_annotations.json",
+        f"{args.datasets}"
     )
 
     cfg.merge_from_file(args.config_file)
 
-    cfg.SOLVER.IMS_PER_BATCH = cfg.batch_size
-    cfg.SOLVER.CHECKPOINT_PERIOD = cfg.checkpoint_period
-    cfg.OUTPUT_DIR = cfg.output_dir
+    cfg.SOLVER.IMS_PER_BATCH = args.batch_size
+    cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
+    cfg.OUTPUT_DIR = args.output_dir
 
     cfg.SOLVER.RESUME = True
     
-    cfg.INPUT.MAX_SIZE_TRAIN = cfg.input_size
-    cfg.INPUT.MIN_SIZE_TRAIN = cfg.input_size
+    cfg.INPUT.MAX_SIZE_TRAIN = args.input_size
+    cfg.INPUT.MIN_SIZE_TRAIN = args.input_size
 
     cfg.SOLVER.AMP.ENABLED = True
 
-    cfg.SOLVER.BASE_LR = cfg.lr
-    cfg.SOLVER_MAX_ITER = cfg.iter
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = cfg.num_classes
+    cfg.SOLVER.BASE_LR = args.lr
+    cfg.SOLVER_MAX_ITER = args.iter
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = args.num_classes
 
     cfg.DATASETS.TRAIN = ("custom_train",)
     cfg.DATASETS.TEST = ("custom_train",)
@@ -409,9 +409,9 @@ def setup(args):
     cfg.merge_from_list(args.opts)
     cfg.freeze()
     default_setup(cfg, args)
-    setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="maskdino")
+    setup_logger(output=args.output_dir, distributed_rank=comm.get_rank(), name="maskdino")
 
-    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)  # 출력 디렉토리 생성
+    os.makedirs(args.output_dir, exist_ok=True)  # 출력 디렉토리 생성
 
     return cfg
 

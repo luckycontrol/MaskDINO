@@ -53,6 +53,8 @@ RUN pip install -U opencv-python
 
 RUN pip install albumentations
 
+RUN pip install argparse
+
 # Detectron2 설치 전 필요한 의존성 설치
 RUN pip install numpy cython
 

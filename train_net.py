@@ -418,31 +418,6 @@ def setup(args):
 def main(args):
     cfg = setup(args)
 
-    register_coco_instances(
-        "custom_train",
-        {},
-        os.path.join(args.datasets, "coco_annotations.json"),
-        args.datasets
-    )
-
-    cfg.merge_from_file(args.config_file)
-
-    cfg.MODEL.WEIGHTS = args.weights
-    cfg.SOLVER.IMS_PER_BATCH = args.batch_size
-    cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
-    cfg.OUTPUT_DIR = args.output_dir
-    cfg.INPUT.MAX_SIZE_TRAIN = args.input_size
-    cfg.INPUT.MIN_SIZE_TRAIN = args.input_size
-    cfg.SOLVER.BASE_LR = args.lr
-    cfg.SOLVER_MAX_ITER = args.iter
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = args.num_classes
-
-    cfg.SOLVER.RESUME = args.resume
-    cfg.SOLVER.AMP.ENABLED = True
-
-    cfg.DATASETS.TRAIN = ("custom_train",)
-    cfg.DATASETS.TEST = ("custom_train",)
-
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
     if args.eval_only:

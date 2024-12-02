@@ -382,8 +382,8 @@ def setup(args):
     register_coco_instances(
         "custom_train",
         {},
-        f"{args.datasets}\coco_annotations.json",
-        f"{args.datasets}"
+        os.path.join(args.datasets, "coco_annotations.json"),
+        args.datasets
     )
 
     cfg.merge_from_file(args.config_file)

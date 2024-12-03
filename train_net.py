@@ -66,6 +66,7 @@ from detectron2.engine import (
 )
 import weakref
 from maskdino.data.dataset_mappers.albumentation_mapper import AlbumentationMapper
+from maskdino.utils.device_utils import get_device
 
 def get_parser():
     parser = argparse.ArgumentParser(description="MaskDINO Training")
@@ -121,6 +122,9 @@ class Trainer(DefaultTrainer):
         if not logger.isEnabledFor(logging.INFO):  # setup_logger is not called for d2
             setup_logger()
         cfg = DefaultTrainer.auto_scale_workers(cfg, comm.get_world_size())
+
+        device = get_device()
+        cfg.MODEL_DEVICE = device.type
 
         # Assume these objects must be constructed in this order.
         model = self.build_model(cfg)

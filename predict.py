@@ -6,6 +6,7 @@ from detectron2.engine import DefaultPredictor
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
 from maskdino import add_maskdino_config
+from maskdino.utils.device_utils import get_device
 import cv2
 import numpy as np
 from pathlib import Path
@@ -21,7 +22,9 @@ def setup_cfg(weights_path):
     cfg.MODEL.WEIGHTS = weights_path
 
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-    cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    device = get_device()
+    cfg.MODEL_DEVICE = device.type
     
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
 

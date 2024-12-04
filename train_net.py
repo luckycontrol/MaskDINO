@@ -123,9 +123,6 @@ class Trainer(DefaultTrainer):
             setup_logger()
         cfg = DefaultTrainer.auto_scale_workers(cfg, comm.get_world_size())
 
-        device = get_device()
-        cfg.MODEL_DEVICE = device.type
-
         # Assume these objects must be constructed in this order.
         model = self.build_model(cfg)
         optimizer = self.build_optimizer(cfg, model)
@@ -391,6 +388,9 @@ def setup(args):
     )
 
     cfg.merge_from_file(args.config_file)
+
+    device = get_device()
+    cfg.MODEL.DEVICE = device.type
 
     cfg.SOLVER.IMS_PER_BATCH = args.batch_size
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period

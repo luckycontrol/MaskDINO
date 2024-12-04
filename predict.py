@@ -18,16 +18,15 @@ def setup_cfg(weights_path):
     add_maskdino_config(cfg)
 
     cfg.merge_from_file(r"D:\models\MaskDINO\output6\config.yaml")
-
     cfg.MODEL.WEIGHTS = weights_path
-
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     
     device = get_device()
-    cfg.MODEL_DEVICE = device.type
+    cfg.MODEL.DEVICE = device.type
     
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
 
+    cfg.freeze()
     return cfg
 
 def predict_image(predictor, image_path, output_path=None):

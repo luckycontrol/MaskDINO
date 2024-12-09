@@ -17,13 +17,13 @@ def setup_cfg(weights_path):
     add_deeplab_config(cfg)
     add_maskdino_config(cfg)
 
-    cfg.merge_from_file(r"D:\models\MaskDINO\output6\config.yaml")
+    cfg.merge_from_file(r"D:\models\MaskDINO\configs\coco\instance-segmentation\maskdino_R50_bs16_50ep_3s.yaml")
     cfg.MODEL.WEIGHTS = weights_path
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     
     device = get_device()
+
     cfg.MODEL.DEVICE = device.type
-    
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
 
     cfg.freeze()
@@ -62,13 +62,13 @@ def predict_image(predictor, image_path, output_path=None):
     return result_image
 
 def main():
-    weights_path = r"D:\models\MaskDINO\output6\model_0009999.pth"
+    weights_path = r"D:\models\MaskDINO\training\output2\model_0019999.pth"
 
     cfg = setup_cfg(weights_path)
 
     predictor = DefaultPredictor(cfg)
 
-    test_image_dir = r"D:\TEST_sfa"
+    test_image_dir = r"D:\data\SFA\TEST_sfa"
     output_dir = "predictions8"
 
     Path(output_dir).mkdir(exist_ok=True)

@@ -1,5 +1,5 @@
 # CUDA 12.1을 지원하는 Python 3.11 기본 이미지 사용
-FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 
 # 환경 변수 설정
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,6 +33,23 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
     bash ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
 
+# CUDA 저장소 추가 및 필요한 CUDA 개발 패키지만 설치
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb && \
+    dpkg -i cuda-keyring_1.0-1_all.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        cuda-toolkit-12-1 \
+        cuda-nvcc-12-1 \
+        cuda-libraries-dev-12-1 \
+        cuda-minimal-build-12-1 \
+        cuda-cudart-dev-12-1 && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm cuda-keyring_1.0-1_all.deb
+
+# CUDA 환경 변수 설정
+ENV PATH=/usr/local/cuda-12.1/bin:${PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:${LD_LIBRARY_PATH}
+
 # Conda 초기화 및 환경 설정
 RUN conda init bash && \
     echo "conda activate maskdino" >> ~/.bashrc
@@ -58,10 +75,14 @@ RUN pip install albumentations
 RUN pip install argparse
 
 # Detectron2 설치 전 필요한 의존성 설치
-RUN pip install cython
+RUN pip install -U pip && \
+    pip install cython && \
+    pip install 'pyyaml>=5.1' && \
+    pip install setuptools>=59.5.0 && \
+    pip install ninja
 
 # Detectron2 설치 (에러가 발생하던 부분 수정)
-RUN pip install 'git+https://github.com/MaureenZOU/detectron2-xyz.git'
+RUN FORCE_CUDA=1 pip install 'git+https://github.com/MaureenZOU/detectron2-xyz.git'
 
 # 나머지 요구사항 설치
 RUN pip install 'git+https://github.com/cocodataset/panopticapi.git' && \

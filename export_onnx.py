@@ -4,8 +4,58 @@ from detectron2.projects.deeplab import add_deeplab_config
 from maskdino import add_maskdino_config
 from maskdino.utils.device_utils import get_device
 from detectron2.modeling import build_model
+from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.engine import DefaultPredictor
+import detectron2.data.transforms as T
 import torch.nn.functional as F
+import numpy as np
+
+import torch
+import torch.nn.functional as F
+import numpy as np
+from detectron2.data.transforms import ResizeShortestEdge
+
+class MaskDINOONNXWrapper(torch.nn.Module):
+    def __init__(self, model, cfg):
+        super(MaskDINOONNXWrapper, self).__init__()
+        self.model = model
+        self.cfg = cfg
+        self.min_size = cfg.INPUT.MIN_SIZE_TEST
+        self.max_size = cfg.INPUT.MAX_SIZE_TEST
+    
+    def forward(self, x):
+        # x is a tensor of shape (B, 3, H, W)
+        # Apply resizing
+        original_size = x.shape[-2:]
+        # Calculate the scale factor for resizing
+        min_original_size = float(torch.min(torch.tensor(original_size)))
+        max_original_size = float(torch.max(torch.tensor(original_size)))
+        scale_factor = self.min_size / min_original_size
+        # Calculate the new size
+        if max_original_size * scale_factor > self.max_size:
+            scale_factor = self.max_size / max_original_size
+        new_size = (int(scale_factor * original_size[0]), int(scale_factor * original_size[1]))
+        # Resize the image tensor
+        resized_x = F.interpolate(x, size=new_size, mode='bilinear', align_corners=False)
+        # Convert to BGR if necessary
+        if self.cfg.INPUT.FORMAT == "BGR":
+            resized_x = resized_x[:, [2, 1, 0], :, :]
+        # Create input list
+        inputs = []
+        for i in range(resized_x.shape[0]):
+            image = resized_x[i]
+            height, width = image.shape[1], image.shape[2]
+            inputs.append({"image": image, "height": height, "width": width})
+        # Forward pass
+        predictions = self.model(inputs)
+        instances = predictions[0]['instances'].to("cpu")
+        # Collect outputs
+        pred_masks = instances.pred_masks.numpy()
+        pred_boxes = instances.pred_boxes.tensor.detach().numpy()
+        scores = instances.scores.detach().numpy()
+    
+        # Return as a tuple
+        return pred_masks, pred_boxes, scores
 
 def setup_cfg(weights_path):
     cfg = get_cfg()
@@ -29,42 +79,32 @@ def convert_to_onnx():
     weights_path = r"D:\models\MaskDINO\training\output2\model_0019999.pth"
     cfg = setup_cfg(weights_path)
     model = build_model(cfg)
+    
+    checkpointer = DetectionCheckpointer(model)
+    checkpointer.load(cfg.MODEL.WEIGHTS)
     model.eval()
-
-    # 더미 입력 생성 (입력 크기는 모델에 맞게 조정 필요)
-    dummy_tensor = torch.randn(1, 3, 1024, 1024, device=get_device())
     
-    # ONNX 내보내기를 위한 forward wrapper 생성
-    class ModelWrapper(torch.nn.Module):
-        def __init__(self, model):
-            super().__init__()
-            self.model = model
-            
-        def forward(self, x):
-            # 백본을 통한 특징 추출
-            features = self.model.backbone(x)
-            # sem_seg_head를 통한 예측
-            outputs, _ = self.model.sem_seg_head(features)
-            
-            return outputs["pred_logits"], outputs["pred_masks"], outputs["pred_boxes"]
+    # Create dummy input tensor with batch size 1
+    dummy_input = torch.randn(1, 3, 1024, 1024, requires_grad=True).to(cfg.MODEL.DEVICE)
     
-    wrapped_model = ModelWrapper(model)
+    # Create the wrapper
+    wrapper = MaskDINOONNXWrapper(model, cfg)
     
-    # ONNX 내보내기
+    # Export the wrapper
     torch.onnx.export(
-        wrapped_model,
-        dummy_tensor,
+        wrapper,
+        dummy_input,
         "maskdino_model.onnx",
         export_params=True,
         opset_version=13,
         do_constant_folding=True,
         input_names=['input'],
-        output_names=['pred_logits', 'pred_masks', 'pred_boxes'],
+        output_names=['pred_masks', 'pred_boxes', 'scores'],
         dynamic_axes={
             'input': {0: 'batch_size'},
-            'pred_logits': {0: 'batch_size'},
             'pred_masks': {0: 'batch_size'},
-            'pred_boxes': {0: 'batch_size'}
+            'pred_boxes': {0: 'batch_size'},
+            'scores': {0: 'batch_size'}
         }
     )
 

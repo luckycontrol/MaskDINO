@@ -45,7 +45,7 @@ def load_image(image_path, cfg):
         [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
         cfg.INPUT.MAX_SIZE_TEST
     )
-    image = aug.get_transform(original_image).apply_image(original_image)
+    image = cv2.resize(original_image, (1024, 1024))
     
     # [H, W, C] -> [C, H, W] 변환 및 float32로 변환
     image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
@@ -82,7 +82,7 @@ def visualize_predictions(original_image, pred_masks, pred_logits, pred_boxes, t
     mask_overlay = np.zeros_like(original_image)
     
     # 상위 5개 마스크 선택
-    top_indices = np.argsort(scores)[-30:][::-1]
+    top_indices = np.argsort(scores)[::-1]
     colors = [(np.random.random(3) * 0.6 + 0.4) for _ in range(len(top_indices))]
     
     for idx, color in zip(top_indices, colors):

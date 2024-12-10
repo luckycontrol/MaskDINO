@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CPATH="/usr/local/cuda/include:${CPATH:-}" \
     CUDA_HOME=/usr/local/cuda \
     CUDA_PATH=/usr/local/cuda \
-    CUDA_ROOT=/usr/local/cuda
+    CUDA_ROOT=/usr/local/cuda \
+    FORCE_CUDA=1
 
 # Install system packages
 RUN apt-get update && apt-get install -y \
@@ -41,24 +42,16 @@ RUN conda init bash && \
 # Activate Conda environment and install packages
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
     conda activate maskdino && \
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia -y && \
     pip install -U opencv-python numpy==1.23.5 albumentations argparse && \
     pip install -U pip cython 'pyyaml>=5.1' setuptools>=59.5.0 ninja && \
-    git clone https://github.com/MaureenZOU/detectron2-xyz.git && \
-    cd detectron2-xyz && \
-    TORCH_CUDA_ARCH_LIST='6.0 6.1 7.0 7.5 8.0 8.6+PTX' \
-    FORCE_CUDA=1 \
-    CC=gcc \
-    CXX=g++ \
-    CUDA_HOME=/usr/local/cuda \
-    CUDA_PATH=/usr/local/cuda \
-    python setup.py build develop && \
+    pip install 'git+https://github.com/MaureenZOU/detectron2-xyz.git' && \
     pip install 'git+https://github.com/cocodataset/panopticapi.git' 'git+https://github.com/mcordts/cityscapesScripts.git' && \
-    git clone https://github.com/luckycontrol/MaskDINO.git . && \
+    git clone https://github.com/luckycontrol/MaskDINO.git && \
+    cd MaskDINO && \
     pip install -r requirements.txt && \
     pip install Pillow==9.5.0 && \
     cd maskdino/modeling/pixel_decoder/ops && \
-    FORCE_CUDA=1 python setup.py build install && \
     sh make.sh"
 
 # Set working directory and volumes

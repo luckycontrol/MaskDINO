@@ -12,10 +12,11 @@ from pathlib import Path
 import json
 
 class AlbumentationMapper:
-    def __init__(self, cfg, is_train=True):
+    def __init__(self, cfg, is_train=True, tfm_gens=None, image_format=None):
         self.is_train = is_train
         self.mask_on = True
-        self.img_format = cfg.INPUT.FORMAT
+        self.img_format = cfg.INPUT.FORMAT if image_format is None else image_format
+        self.tfm_gens = tfm_gens if tfm_gens is not None else []
         self.output_dir = Path("augmented_data")
         self.output_dir.mkdir(exist_ok=True)
 
@@ -33,7 +34,7 @@ class AlbumentationMapper:
         self.transform = A.Compose([
             A.HorizontalFlip()
         ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['category_ids']),
-           mask_params=A.MaskParams(mask_rules=[]))
+        )
 
     def __call__(self, dataset_dict):
         dataset_dict = copy.deepcopy(dataset_dict)
@@ -138,4 +139,3 @@ class AlbumentationMapper:
     def __del__(self):
         """소멸자에서 최종 COCO 어노테이션 저장"""
         self._save_coco_annotations()
-

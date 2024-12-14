@@ -85,11 +85,13 @@ def get_parser():
     parser.add_argument('--weights', default='weights', help='weights path')
     parser.add_argument('--output_dir', default='output', help='output directory')
     parser.add_argument('--checkpoint_period', type=int, default=5000, help='checkpoint period')
-    parser.add_argument('--input_size', type=int, default=640, help='input size')
+    parser.add_argument('--input_size', type=int, default=1024, help='input size')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--lr', type=float, default=0.000005, help='learning rate')
-    parser.add_argument('--iter', type=int, default=30000, help='iteration')
+    parser.add_argument('--iter', type=int, default=3000, help='iteration')
     parser.add_argument('--num_classes', type=int, default=1, help='number of classes')
+    parser.add_argument('--num_queries', type=int, default=100, help='number of queries')
+    parser.add_argument('--eval_period', type=int, default=5000, help='evaluation period')
     parser.add_argument('--resume', action='store_true', help='resume training')
     
     # opts를 위한 인자 추가
@@ -106,7 +108,12 @@ def get_parser():
 def build_train_loader(cfg):
 
     if cfg.INPUT.USE_ALBUMENTATIONS:
-        mapper = AlbumentationMapper(cfg, is_train=True)
+        mapper = AlbumentationMapper(
+            cfg,
+            is_train=True,
+            tfm_gens=[],
+            image_format=cfg.INPUT.FORMAT
+        )
     else:
         mapper = COCOInstanceNewBaselineDatasetMapper(cfg, is_train=True)
 
@@ -246,7 +253,7 @@ class Trainer(DefaultTrainer):
     def build_train_loader(cls, cfg):
         # coco instance segmentation lsj new baseline
         if cfg.INPUT.DATASET_MAPPER_NAME == "coco_instance_lsj":
-            mapper = COCOInstanceNewBaselineDatasetMapper(cfg, True)
+            mapper = COCOInstanceNewBaselineDatasetMapper(cfg, is_train=True)
             return build_detection_train_loader(cfg, mapper=mapper)
         # coco instance segmentation lsj new baseline
         elif cfg.INPUT.DATASET_MAPPER_NAME == "coco_instance_detr":
@@ -396,19 +403,28 @@ def setup(args):
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
     cfg.OUTPUT_DIR = args.output_dir
 
+    # Add missing parameters for AlbumentationMapper
+    cfg.INPUT.FORMAT = "BGR"  # Add image format
+    cfg.INPUT.USE_ALBUMENTATIONS = True  # Enable Albumentations
+
+    cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.SOLVER.RESUME = True
     
     cfg.INPUT.MAX_SIZE_TRAIN = args.input_size
     cfg.INPUT.MIN_SIZE_TRAIN = args.input_size
+    cfg.INPUT.MAX_SIZE_TEST = args.input_size
+    cfg.INPUT.MIN_SIZE_TEST = args.input_size
 
     cfg.SOLVER.AMP.ENABLED = True
 
     cfg.SOLVER.BASE_LR = args.lr
-    cfg.SOLVER_MAX_ITER = args.iter
+    cfg.SOLVER.MAX_ITER = args.iter
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = args.num_classes
 
     cfg.DATASETS.TRAIN = ("custom_train",)
     cfg.DATASETS.TEST = ("custom_train",)
+
+    cfg.MODEL.MaskDINO.NUM_OBJECT_QUERIES = args.num_queries
 
     cfg.merge_from_list(args.opts)
     cfg.freeze()

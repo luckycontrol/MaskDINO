@@ -31,7 +31,7 @@ RUN ARCH=$(uname -m) && \
 RUN /opt/conda/bin/conda init bash && \
     /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda create -n maskdino python=3.11 -y && \
     conda activate maskdino && \
-    conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia -y && \
+    conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia -y && \
     pip install -U opencv-python numpy==1.23.5 albumentations argparse && \
     conda install -c conda-forge setuptools ninja -y && \
     pip install 'git+https://github.com/MaureenZOU/detectron2-xyz.git' && \
@@ -44,7 +44,7 @@ RUN /opt/conda/bin/conda init bash && \
     sh make.sh && \
     find . -name '*.o' -delete && \
     cd / && \
-    conda clean --all -y"
+    conda clean -afy "
 
 # 빌드된 파일 복사를 위한 임시 디렉토리 생성 및 파일 복사
 RUN mkdir /app && \

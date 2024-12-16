@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda \
     FORCE_CUDA=1 \
     TORCH_CUDA_ARCH_LIST=7.5
+    
 
 # 시스템 패키지 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,13 +44,12 @@ RUN /opt/conda/bin/conda init bash && \
     sh make.sh && \
     find . -name '*.o' -delete && \
     cd / && \
-    conda clean -afy"
+    conda clean --all -y"
 
 # 빌드된 파일 복사를 위한 임시 디렉토리 생성 및 파일 복사
 RUN mkdir /app && \
-    mkdir -p /app/conda/envs && \
     cp -r /MaskDINO /app/MaskDINO && \
-    cp -r /opt/conda/envs/maskdino /app/conda/envs/maskdino
+    cp -r /opt/conda /app/conda
 
 # --- Stage 2: 실행 환경 ---
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu20.04
@@ -57,14 +57,17 @@ FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu20.04
 # 환경 변수 설정 (필요한 변수만)
 ENV DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda \
-    PATH=/opt/conda/envs/maskdino/bin:$PATH
+    PATH=/opt/conda/bin:$PATH \
+    CONDA_AUTO_ACTIVATE_BASE=false
 
 # Stage 1에서 빌드된 파일 복사
 COPY --from=builder /app/MaskDINO /maskdino
-COPY --from=builder /app/conda/envs/maskdino /opt/conda/envs/maskdino
+COPY --from=builder /app/conda /opt/conda
 
 # 작업 디렉토리 설정
 WORKDIR /maskdino
 
 # 볼륨 설정
 VOLUME ["/maskdino/datasets", "/maskdino/output", "/maskdino/weights"]
+
+SHELL ["/bin/bash", "--login", "-c"]

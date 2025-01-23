@@ -17,7 +17,7 @@ def setup_cfg(weights_path):
     add_deeplab_config(cfg)
     add_maskdino_config(cfg)
 
-    cfg.merge_from_file(r"D:\models\MaskDINO\configs\coco\instance-segmentation\maskdino_R50_bs16_50ep_3s.yaml")
+    cfg.merge_from_file(r"D:\models\MaskDINO\configs\coco\instance-segmentation\maskdino_R50_bs16_50ep_3s_dowsample1_2048.yaml")
     cfg.MODEL.WEIGHTS = weights_path
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     
@@ -51,7 +51,7 @@ def predict_image(predictor, image_path, output_path=None):
                 mask_overlay[mask > 0] = [0, 255, 0]  # Green color for masks
         
         # Blend the mask with original image
-        alpha = 0.5
+        alpha = 0.7
         result_image = cv2.addWeighted(img, 1, mask_overlay, alpha, 0)
     else:
         result_image = img.copy()
@@ -62,24 +62,24 @@ def predict_image(predictor, image_path, output_path=None):
     return result_image
 
 def main():
-    weights_path = r"D:\models\MaskDINO\training\output2\model_0019999.pth"
+    weights_path = r"D:\models\MaskDINO\MEA_1280_v2\model_final.pth"
 
     cfg = setup_cfg(weights_path)
 
     predictor = DefaultPredictor(cfg)
 
-    test_image_dir = r"D:\data\SFA\TEST_sfa"
-    output_dir = "predictions8"
+    test_image_dir = r"D:\scr_segment-1280-.v1i.coco\valid"
+    output_dir = "mea_prediction_1280_v3"
 
     Path(output_dir).mkdir(exist_ok=True)
 
-    for image_path in Path(test_image_dir).glob("*.png"):
+    for image_path in Path(test_image_dir).glob("*.jpg"):
         print(f"{image_path} 처리중..")
         output_path = Path(output_dir) / f"pred_{image_path.name}"
 
         try:
             result = predict_image(predictor, str(image_path), str(output_path))
-            print(f"{output_path} 에 저장")
+            print(f"{output_path}에 저장")  
         except Exception as e:
             print(f"{image_path}: {e}")
 

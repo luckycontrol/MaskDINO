@@ -70,7 +70,7 @@ from maskdino.utils.device_utils import get_device
 
 def get_parser():
     parser = argparse.ArgumentParser(description="MaskDINO Training")
-    parser.add_argument("--config-file", default="configs/coco/instance-segmentation/maskdino_R50_bs16_50ep_3s.yaml", 
+    parser.add_argument("--config-file", default="configs/coco/instance-segmentation/maskdino_R50_bs16_50ep_3s_dowsample1_2048.yaml", 
                       metavar="FILE", help="path to config file")
     parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus")
     parser.add_argument("--num-machines", type=int, default=1, help="number of machines")
@@ -81,17 +81,18 @@ def get_parser():
     parser.add_argument('--EVAL_FLAG', type=int, default=1, help="evaluation flag")
     
     # 추가 인자들
-    parser.add_argument('--datasets', default='datasets', help='dataset path')
-    parser.add_argument('--weights', default='weights', help='weights path')
-    parser.add_argument('--output_dir', default='output', help='output directory')
-    parser.add_argument('--checkpoint_period', type=int, default=5000, help='checkpoint period')
-    parser.add_argument('--input_size', type=int, default=1024, help='input size')
+    parser.add_argument('--datasets', default=r'D:\scr_segment-1280-.v1i.coco\train', help='dataset path')
+    parser.add_argument('--val_datasets', default=r'D:\scr_segment-1280-.v1i.coco\valid', help='val dataset path')
+    parser.add_argument('--weights', default=r'D:\models\MaskDINO\weights\maskdino_r50_50ep_300q_hid1024_3sd1_instance_maskenhanced_mask46.1ap_box51.5ap.pth', help='weights path')
+    parser.add_argument('--output_dir', default='MEA_1280_v2_input_size_edit_50000', help='output directory')
+    parser.add_argument('--checkpoint_period', type=int, default=2000, help='checkpoint period')
+    parser.add_argument('--input_size', type=int, default=1280, help='input size')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
-    parser.add_argument('--lr', type=float, default=0.000005, help='learning rate')
-    parser.add_argument('--iter', type=int, default=3000, help='iteration')
+    parser.add_argument('--lr', type=float, default=0.0005, help='learning rate')
+    parser.add_argument('--iter', type=int, default=50000, help='iteration')
     parser.add_argument('--num_classes', type=int, default=1, help='number of classes')
     parser.add_argument('--num_queries', type=int, default=100, help='number of queries')
-    parser.add_argument('--eval_period', type=int, default=5000, help='evaluation period')
+    parser.add_argument('--eval_period', type=int, default=500, help='evaluation period')
     parser.add_argument('--resume', action='store_true', help='resume training')
     
     # opts를 위한 인자 추가
@@ -394,6 +395,13 @@ def setup(args):
         args.datasets
     )
 
+    register_coco_instances(
+        "custom_valid",
+        {},
+        os.path.join(args.val_datasets, "coco_annotations.json"),
+        args.val_datasets
+    )
+
     cfg.merge_from_file(args.config_file)
 
     device = get_device()
@@ -408,12 +416,12 @@ def setup(args):
     cfg.INPUT.USE_ALBUMENTATIONS = True  # Enable Albumentations
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
-    cfg.SOLVER.RESUME = True
+    cfg.SOLVER.RESUME = False
     
-    cfg.INPUT.MAX_SIZE_TRAIN = args.input_size
-    cfg.INPUT.MIN_SIZE_TRAIN = args.input_size
-    cfg.INPUT.MAX_SIZE_TEST = args.input_size
-    cfg.INPUT.MIN_SIZE_TEST = args.input_size
+    # cfg.INPUT.MAX_SIZE_TRAIN = args.input_size + 200
+    # cfg.INPUT.MIN_SIZE_TRAIN = (args.input_size,)
+    # cfg.INPUT.MAX_SIZE_TEST = args.input_size + 200
+    # cfg.INPUT.MIN_SIZE_TEST = (args.input_size,)
 
     cfg.SOLVER.AMP.ENABLED = True
 
@@ -422,7 +430,7 @@ def setup(args):
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = args.num_classes
 
     cfg.DATASETS.TRAIN = ("custom_train",)
-    cfg.DATASETS.TEST = ("custom_train",)
+    cfg.DATASETS.TEST = ("custom_valid",)
 
     cfg.MODEL.MaskDINO.NUM_OBJECT_QUERIES = args.num_queries
 
@@ -449,7 +457,7 @@ def main(args):
         return res
 
     trainer = Trainer(cfg)
-    trainer.resume_or_load(resume=args.resume)
+    trainer.resume_or_load(resume=False)
     return trainer.train()
 
 
